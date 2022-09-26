@@ -1,0 +1,178 @@
+---
+title: "Missouri air permits"
+output: html_notebook
+---
+
+The beginning of an analysis of air permit data in Missouri and Kansas City.
+
+Loading in completed projects data set:
+
+```{r}
+completed_mo <- read_csv("data/completed-air-permits-july1.csv")
+```
+
+At 32,157 columns. 1 column = 1 permit.
+
+### Integrity checks:
+
+How many unique IDs?
+
+```{r}
+completed_mo %>% group_by(program_reference_id) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+32,154 rows/IDs
+
+3 have duplicates of 2 - AP199500016 - AP200110083 - AP200504051
+
+How many installation names?
+
+```{r}
+completed_mo %>% group_by(facility_site_name) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+This looks like company name - total of 6,977.
+
+MFA INC. has the most at 256 Capital Quarries, Inc. has 160 Mississippi Lime Company has 137.
+
+How many cities? How many permits per city?
+
+```{r}
+completed_mo %>% group_by(city) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+823 cities
+
+St. Louis - 2339 rows Kansas City - 1207 rows St. Joseph - 795 rows Springfield - 720 rows
+
+Also, North Kansas City has 341 rows at #10
+
+How many counties? How many counties per city?
+
+```{r}
+completed_mo %>% group_by(county) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+Jackson County - 1942 St. Louis City - 1842 St. Louis - 1180 St. Charles - 1038 Jasper - 988 Portable Plant - 974
+
+How many permit statuses?
+
+```{r}
+completed_mo %>% group_by(permit_status) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+55 statuses
+
+AP: No permit required is the most at 4883 AP: Permit Issued is second at 4063 This is a dirty column\*\*
+
+How many permit types?
+
+```{r}
+completed_mo %>% group_by(permit_type) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+53 permit types
+
+How many permit numbers?
+
+```{r}
+completed_mo %>% group_by(permit_number) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+13,822 permit numbers (8,424 NAs, 127 labeled as N/A - column might not be the most reliable).
+
+How many site ids?
+
+```{r}
+completed_mo %>% group_by(site_id) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+7,983 site IDs
+
+Filtering by Kansas City
+
+```{r}
+kc_completed <- completed_mo %>% filter(city == "Kansas City")
+```
+
+1207 rows / permits
+
+### In Kansas City:
+
+What company has the most applications?
+
+```{r}
+kc_completed %>% group_by(facility_site_name) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+Ford Motor Company - KC Plant at 51 Miles Inc at 39 Kansas City Power and Light (Hawthorn) has 37 (third highest)
+
+What type of permit is the most?
+
+```{r}
+kc_completed %>% group_by(permit_type) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+AP: Local CP - 311 AOP: Basic operating permit renewal - 191
+
+Mapping Where are there permits issues in Kansas City?
+
+How many KC rows are missing an address?
+
+```{r}
+kc_completed %>% group_by(facility_site_address) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+11 blanks. This also shows 51 permits at the same location, and then a lot at the Hawthorn location (Hawthorn came up in research).
+
+Making addresses lowercase, then geocoding and loading back in:
+
+```{r}
+kc_completed <- kc_completed %>% mutate(facility_site_address = tolower(facility_site_address))
+
+write_csv(kc_completed, "data/kc-completed-july1.csv")
+
+kc_geo <- read_csv("data/kc-completed-july1-geocoded.csv") %>% clean_names()
+```
+
+Mapping the geocoded data as points on a map to look for trends:
+
+```{r}
+leaflet(kc_geo) %>% addTiles() %>% addCircles(lng = ~longitude, lat = ~latitude)
+```
+
+What census tract has the most?
+
+```{r}
+kc_geo %>% group_by(full_fips_tract) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+29095015500 (155) has 192 permits
+
+175 has 68
+
+221 has 65
